@@ -1,6 +1,15 @@
-﻿Public Class Form1
+﻿Imports System.Configuration
+Imports System.Data.SQLite
+Imports System.IO
 
-    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+Public Class Main
+
+    Private Sub Main_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        DbConnection.CheckTablesExist()
+
+        LoadCountyList()
+        LoadApplicationList()
+
         lstCounty.Items.Add("CUC")
         lstCounty.Items.Add("Dallas")
         lstCounty.Items.Add("Midland")
@@ -18,9 +27,15 @@
         lstApplication.SelectedIndex = 0
 
 
+
     End Sub
 
     Private Sub btnExecute_Click(sender As Object, e As EventArgs) Handles btnExecute.Click
+
+        Dim connMakeDB As SQLiteConnection = New SQLiteConnection("CountyConnections.sqlite")
+        Dim conn = New SQLiteConnection("Data Source=CountyConnections.sqlite;Version3")
+        conn.Open()
+
         Dim strPart1 As String
         Dim strPart2 As String
         Dim strFullString As String
@@ -41,7 +56,7 @@
             p.StartInfo = pi
             p.Start()
         End If
-        
+
 
     End Sub
 
@@ -97,12 +112,16 @@
         If lstApplication.SelectedItem.ToString() = "DB" Then
             PopulateServerList()
             lstServerList.Show()
-            lblServerList.Show()
+            lblAdditionalInfo.Show()
             btnCopyServerSelection.Show()
+            btnAddAdditionalInfo.Show()
+            btnDeleteAdditionalInfo.Show()
         Else
             lstServerList.Hide()
-            lblServerList.Hide()
+            lblAdditionalInfo.Hide()
             btnCopyServerSelection.Hide()
+            btnAddAdditionalInfo.Hide()
+            btnDeleteAdditionalInfo.Hide()
         End If
     End Sub
 
@@ -171,8 +190,140 @@
             btnShowConnectionText.Text = "Show Connection Text"
         End If
 
+    End Sub
 
+    Private Sub btnAddCounty_Click(sender As Object, e As EventArgs) Handles btnAddCounty.Click
+        Me.Hide()
+        County_Editor.Show()
+    End Sub
 
+    Private Sub btnDeleteCounty_Click(sender As Object, e As EventArgs) Handles btnDeleteCounty.Click
+        If ListBox1.SelectedIndex > 0 Then
+            Dim selection As String = ListBox1.SelectedItem.ToString()
+            Dim message As String = "Are you sure you want to delete " & selection & "?"
+            Dim response = MsgBox(message, MsgBoxStyle.OkCancel, "Confirm Delete")
+
+            If response = MsgBoxResult.Ok Then
+                County.DeleteCounty(Me.GetSelectedCounty())
+            End If
+
+            LoadCountyList()
+
+        Else
+            Dim message As String = "Please select a county to delete."
+            MsgBox(message, MsgBoxStyle.OkOnly)
+        End If
+
+    End Sub
+
+    Private Function GetSelectedCounty() As County
+        Dim conn As SQLiteConnection = DbConnection.GetConnection()
+        Dim SQL As String = "SELECT * FROM County WHERE Name = @name"
+
+        Dim county As County = New County()
+        Dim selectedName As String
+
+        TextBox6.Text = ListBox1.SelectedItem.ToString
+        selectedName = ListBox1.SelectedItem.ToString
+
+        Dim selectCmd As SQLiteCommand = New SQLiteCommand(SQL, conn)
+        selectCmd.Parameters.AddWithValue("@name", selectedName)
+
+        conn.Open()
+        Dim reader As SQLiteDataReader = selectCmd.ExecuteReader()
+
+        While (reader.Read())
+            county.Id = reader("Id")
+            county.CountyName = reader("Name").ToString()
+            county.Domain = reader("Domain").ToString()
+            county.Username = reader("Username").ToString()
+            county.IsDefault = reader("IsDefault")
+        End While
+
+        conn.Close()
+        Return county
+    End Function
+
+    Private Function GetSelectedApplication() As Application
+        Dim conn As SQLiteConnection = DbConnection.GetConnection()
+        Dim SQL As String = "SELECT * FROM Application WHERE Name = @name"
+
+        Dim application As New Application()
+
+        Dim selectedName As String
+
+        TextBox7.Text = ListBox2.SelectedItem.ToString
+        selectedName = ListBox2.SelectedItem.ToString
+
+        Dim selectCmd As SQLiteCommand = New SQLiteCommand(SQL, conn)
+        selectCmd.Parameters.AddWithValue("@name", selectedName)
+
+        conn.Open()
+        Dim reader As SQLiteDataReader = selectCmd.ExecuteReader()
+
+        While (reader.Read())
+            application.Id = reader("Id")
+            application.Name = reader("Name").ToString()
+            application.Path = reader("Path").ToString()
+            application.IsDefault = reader("IsDefault")
+        End While
+
+        conn.Close()
+        Return application
+    End Function
+
+    Public Sub LoadCountyList()
+        Dim conn As SQLiteConnection = DbConnection.GetConnection()
+        conn.Open()
+        Dim sql As String = "SELECT Name FROM County ORDER BY Name"
+        Dim selectCmd As SQLiteCommand = New SQLiteCommand(sql, conn)
+        Dim reader As SQLiteDataReader = selectCmd.ExecuteReader()
+
+        ListBox1.Items.Clear()
+        While (reader.Read())
+            ListBox1.Items.Add(reader("Name"))
+        End While
+        conn.Close()
+    End Sub
+
+    Public Sub LoadApplicationList()
+        Dim conn As SQLiteConnection = DbConnection.GetConnection()
+        conn.Open()
+        Dim sql As String = "SELECT Name FROM Application ORDER BY Name"
+        Dim selectCmd As SQLiteCommand = New SQLiteCommand(sql, conn)
+        Dim reader As SQLiteDataReader = selectCmd.ExecuteReader()
+
+        ListBox2.Items.Clear()
+        While (reader.Read())
+            ListBox2.Items.Add(reader("Name"))
+        End While
+        conn.Close()
+    End Sub
+
+    Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+        Dim county As New County
+
+        county = Me.GetSelectedCounty()
+
+        TextBox1.Text = county.Id
+        TextBox2.Text = county.CountyName
+        TextBox3.Text = county.Domain
+        TextBox4.Text = county.Username
+        TextBox5.Text = county.IsDefault
+    End Sub
+
+    Private Sub btnAddApplication_Click(sender As Object, e As EventArgs) Handles btnAddApplication.Click
+        Me.Hide()
+        Application_Editor.Show()
+    End Sub
+
+    Public Shared Sub Reload()
+        'LoadApplicationList()
+
+    End Sub
+
+    Private Sub btnClose_Click(sender As Object, e As EventArgs) Handles btnClose.Click
+        Application.Exit()
 
     End Sub
 End Class
